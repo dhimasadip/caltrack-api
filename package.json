@@ -30,6 +30,7 @@
     "fastify-plugin": "^6.0.0",
     "fastify-type-provider-zod": "^7.0.0",
     "ioredis": "^5.11.1",
+    "openai": "^6.48.0",
     "pg": "^8.22.0",
     "zod": "^4.4.3"
   },
