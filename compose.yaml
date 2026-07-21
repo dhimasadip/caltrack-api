@@ -10,6 +10,8 @@ services:
       LOG_LEVEL: info
       DATABASE_URL: postgres://caltrack:caltrack@postgres:5432/caltrack
       REDIS_URL: redis://redis:6379
+      JWT_SECRET: local-development-jwt-secret-change-me
+      TOKEN_HASH_SECRET: local-development-token-hash-secret
     ports:
       - '3000:3000'
     volumes:
