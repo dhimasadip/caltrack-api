@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 
 import { userProfiles, users, type NotificationPreferences } from '../../db/schema.js';
 import { AppError } from '../../errors/app-error.js';
+import { invalidateUserReports } from '../../lib/cache.js';
 import { ageOnDate } from '../../lib/date.js';
 import {
   calculateCalories,
@@ -133,14 +134,6 @@ export async function deleteCurrentUser(app: FastifyInstance, userId: string): P
     await app.redis.del(`reports:version:${userId}`, `ai:quota:${userId}`);
   } catch (error) {
     app.log.warn({ err: error, userId }, 'Failed to clear user cache after account deletion');
-  }
-}
-
-async function invalidateUserReports(app: FastifyInstance, userId: string): Promise<void> {
-  try {
-    await app.redis.incr(`reports:version:${userId}`);
-  } catch (error) {
-    app.log.warn({ err: error, userId }, 'Failed to invalidate report cache');
   }
 }
 

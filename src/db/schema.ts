@@ -2,6 +2,7 @@ import { relations, sql } from 'drizzle-orm';
 import {
   boolean,
   char,
+  check,
   date,
   index,
   integer,
@@ -9,6 +10,7 @@ import {
   numeric,
   pgEnum,
   pgTable,
+  text,
   timestamp,
   uniqueIndex,
   uuid,
@@ -29,6 +31,10 @@ export const calculationMethodEnum = pgEnum('calculation_method', [
   'dri_2023_eer',
   'mifflin_st_jeor',
 ]);
+export const entrySourceEnum = pgEnum('entry_source', ['manual', 'ai']);
+export const mealTypeEnum = pgEnum('meal_type', ['breakfast', 'lunch', 'dinner', 'snack']);
+export const intensityEnum = pgEnum('intensity', ['low', 'moderate', 'high']);
+export const estimationKindEnum = pgEnum('estimation_kind', ['food', 'exercise']);
 
 const auditColumns = {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -102,9 +108,110 @@ export const refreshTokens = pgTable(
   ],
 );
 
+export const aiEstimations = pgTable(
+  'ai_estimations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    requestKey: uuid('request_key').notNull(),
+    kind: estimationKindEnum('kind').notNull(),
+    inputHash: char('input_hash', { length: 64 }).notNull(),
+    result: jsonb('result').$type<Record<string, unknown>>().notNull(),
+    confidence: numeric('confidence', { precision: 4, scale: 3 }).notNull(),
+    model: varchar('model', { length: 100 }).notNull(),
+    inputTokens: integer('input_tokens'),
+    outputTokens: integer('output_tokens'),
+    cached: boolean('cached').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('ai_estimations_user_request_unique').on(table.userId, table.requestKey),
+    index('ai_estimations_user_created_idx').on(table.userId, table.createdAt),
+    check('ai_estimations_confidence_check', sql`${table.confidence} between 0 and 1`),
+  ],
+);
+
+export const foodEntries = pgTable(
+  'food_entries',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    clientEntryId: uuid('client_entry_id').notNull(),
+    entryDate: date('entry_date').notNull(),
+    mealType: mealTypeEnum('meal_type').notNull(),
+    foodName: varchar('food_name', { length: 255 }).notNull(),
+    quantity: numeric('quantity', { precision: 10, scale: 3 }).notNull(),
+    unit: varchar('unit', { length: 50 }).notNull(),
+    calories: numeric('calories', { precision: 10, scale: 2 }).notNull(),
+    proteinG: numeric('protein_g', { precision: 10, scale: 2 }),
+    carbsG: numeric('carbs_g', { precision: 10, scale: 2 }),
+    fatG: numeric('fat_g', { precision: 10, scale: 2 }),
+    source: entrySourceEnum('source').notNull(),
+    aiEstimationId: uuid('ai_estimation_id').references(() => aiEstimations.id, {
+      onDelete: 'set null',
+    }),
+    ...auditColumns,
+  },
+  (table) => [
+    uniqueIndex('food_entries_user_client_unique').on(table.userId, table.clientEntryId),
+    index('food_entries_user_date_idx').on(table.userId, table.entryDate),
+    index('food_entries_user_created_idx').on(table.userId, table.createdAt, table.id),
+    check('food_entries_quantity_check', sql`${table.quantity} > 0`),
+    check('food_entries_calories_check', sql`${table.calories} >= 0`),
+    check(
+      'food_entries_macros_check',
+      sql`(${table.proteinG} is null or ${table.proteinG} >= 0) and (${table.carbsG} is null or ${table.carbsG} >= 0) and (${table.fatG} is null or ${table.fatG} >= 0)`,
+    ),
+    check(
+      'food_entries_source_check',
+      sql`(${table.source} = 'manual' and ${table.aiEstimationId} is null) or (${table.source} = 'ai' and ${table.aiEstimationId} is not null)`,
+    ),
+  ],
+);
+
+export const exerciseEntries = pgTable(
+  'exercise_entries',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    clientEntryId: uuid('client_entry_id').notNull(),
+    entryDate: date('entry_date').notNull(),
+    exerciseName: varchar('exercise_name', { length: 255 }).notNull(),
+    durationMinutes: integer('duration_minutes').notNull(),
+    intensity: intensityEnum('intensity'),
+    caloriesBurned: numeric('calories_burned', { precision: 10, scale: 2 }).notNull(),
+    notes: text('notes'),
+    source: entrySourceEnum('source').notNull(),
+    aiEstimationId: uuid('ai_estimation_id').references(() => aiEstimations.id, {
+      onDelete: 'set null',
+    }),
+    ...auditColumns,
+  },
+  (table) => [
+    uniqueIndex('exercise_entries_user_client_unique').on(table.userId, table.clientEntryId),
+    index('exercise_entries_user_date_idx').on(table.userId, table.entryDate),
+    index('exercise_entries_user_created_idx').on(table.userId, table.createdAt, table.id),
+    check('exercise_entries_duration_check', sql`${table.durationMinutes} > 0`),
+    check('exercise_entries_calories_check', sql`${table.caloriesBurned} >= 0`),
+    check(
+      'exercise_entries_source_check',
+      sql`(${table.source} = 'manual' and ${table.aiEstimationId} is null) or (${table.source} = 'ai' and ${table.aiEstimationId} is not null)`,
+    ),
+  ],
+);
+
 export const usersRelations = relations(users, ({ one, many }) => ({
   profile: one(userProfiles, { fields: [users.id], references: [userProfiles.userId] }),
   refreshTokens: many(refreshTokens),
+  foodEntries: many(foodEntries),
+  exerciseEntries: many(exerciseEntries),
+  aiEstimations: many(aiEstimations),
 }));
 
 export const profileRelations = relations(userProfiles, ({ one }) => ({
@@ -113,4 +220,26 @@ export const profileRelations = relations(userProfiles, ({ one }) => ({
 
 export const refreshTokenRelations = relations(refreshTokens, ({ one }) => ({
   user: one(users, { fields: [refreshTokens.userId], references: [users.id] }),
+}));
+
+export const foodEntryRelations = relations(foodEntries, ({ one }) => ({
+  user: one(users, { fields: [foodEntries.userId], references: [users.id] }),
+  estimation: one(aiEstimations, {
+    fields: [foodEntries.aiEstimationId],
+    references: [aiEstimations.id],
+  }),
+}));
+
+export const exerciseEntryRelations = relations(exerciseEntries, ({ one }) => ({
+  user: one(users, { fields: [exerciseEntries.userId], references: [users.id] }),
+  estimation: one(aiEstimations, {
+    fields: [exerciseEntries.aiEstimationId],
+    references: [aiEstimations.id],
+  }),
+}));
+
+export const aiEstimationRelations = relations(aiEstimations, ({ one, many }) => ({
+  user: one(users, { fields: [aiEstimations.userId], references: [users.id] }),
+  foodEntries: many(foodEntries),
+  exerciseEntries: many(exerciseEntries),
 }));
