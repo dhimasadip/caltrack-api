@@ -165,6 +165,16 @@ describe('authentication and profile API', () => {
   });
 
   it('deletes the account and all authentication data', async () => {
+    await app.redis.mset(
+      `reports:version:${auth.userId}`,
+      '2',
+      `reports:data:${auth.userId}:2:daily:2026-07-21:2026-07-21`,
+      '{}',
+      `ai:quota:${auth.userId}:2026-07-21`,
+      '3',
+      `ai:lock:${auth.userId}:2f128a3e-c90d-452f-a653-9671969736d4`,
+      '1',
+    );
     const response = await app.inject({
       method: 'DELETE',
       url: '/v1/users/me',
@@ -174,5 +184,6 @@ describe('authentication and profile API', () => {
 
     const result = await app.pg.query<{ count: string }>('select count(*) from users');
     expect(result.rows[0]?.count).toBe('0');
+    expect(await app.redis.keys(`*${auth.userId}*`)).toEqual([]);
   });
 });

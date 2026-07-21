@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify';
 
 import { userProfiles, users, type NotificationPreferences } from '../../db/schema.js';
 import { AppError } from '../../errors/app-error.js';
-import { invalidateUserReports } from '../../lib/cache.js';
+import { deleteKeysMatching, invalidateUserReports } from '../../lib/cache.js';
 import { ageOnDate } from '../../lib/date.js';
 import {
   calculateCalories,
@@ -131,7 +131,12 @@ export async function updateSettings(
 export async function deleteCurrentUser(app: FastifyInstance, userId: string): Promise<void> {
   await app.db.delete(users).where(eq(users.id, userId));
   try {
-    await app.redis.del(`reports:version:${userId}`, `ai:quota:${userId}`);
+    await app.redis.del(`reports:version:${userId}`);
+    await deleteKeysMatching(app, [
+      `reports:data:${userId}:*`,
+      `ai:quota:${userId}:*`,
+      `ai:lock:${userId}:*`,
+    ]);
   } catch (error) {
     app.log.warn({ err: error, userId }, 'Failed to clear user cache after account deletion');
   }

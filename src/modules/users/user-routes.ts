@@ -47,6 +47,7 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
     onRequest: [app.authenticate],
     schema: {
       tags: ['users'],
+      summary: 'Get the current user',
       security: [{ bearerAuth: [] }],
       response: {
         200: z.object({
@@ -66,6 +67,7 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
     onRequest: [app.authenticate],
     schema: {
       tags: ['users'],
+      summary: 'Replace profile inputs and recalculate goals',
       security: [{ bearerAuth: [] }],
       body: z.object({
         gender: z.enum(['male', 'female', 'other']),
@@ -86,6 +88,7 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
     onRequest: [app.authenticate],
     schema: {
       tags: ['users'],
+      summary: 'Update user settings',
       security: [{ bearerAuth: [] }],
       body: z
         .object({
@@ -103,6 +106,7 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
     onRequest: [app.authenticate],
     schema: {
       tags: ['users'],
+      summary: 'Permanently delete the current account',
       security: [{ bearerAuth: [] }],
       response: { 204: z.null() },
     },

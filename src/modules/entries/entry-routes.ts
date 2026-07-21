@@ -28,18 +28,32 @@ const listQuerySchema = z
     message: '`from` must be before or equal to `to`.',
   });
 
-const foodInputSchema = z.object({
-  entryDate: isoDateSchema,
-  mealType: z.enum(['breakfast', 'lunch', 'dinner', 'snack']),
-  foodName: z.string().trim().min(1).max(255),
-  quantity: z.number().positive().max(1_000_000),
-  unit: z.string().trim().min(1).max(50),
-  calories: z.number().min(0).max(100_000),
-  proteinG: z.number().min(0).max(10_000).nullable().optional(),
-  carbsG: z.number().min(0).max(10_000).nullable().optional(),
-  fatG: z.number().min(0).max(10_000).nullable().optional(),
-  aiEstimationId: z.uuid().nullable().optional(),
-});
+const foodInputSchema = z
+  .object({
+    entryDate: isoDateSchema,
+    mealType: z.enum(['breakfast', 'lunch', 'dinner', 'snack']),
+    foodName: z.string().trim().min(1).max(255),
+    quantity: z.number().positive().max(1_000_000),
+    unit: z.string().trim().min(1).max(50),
+    calories: z.number().min(0).max(100_000),
+    proteinG: z.number().min(0).max(10_000).nullable().optional(),
+    carbsG: z.number().min(0).max(10_000).nullable().optional(),
+    fatG: z.number().min(0).max(10_000).nullable().optional(),
+    aiEstimationId: z.uuid().nullable().optional(),
+  })
+  .meta({
+    example: {
+      entryDate: '2026-07-21',
+      mealType: 'lunch',
+      foodName: 'Chicken rice',
+      quantity: 1,
+      unit: 'plate',
+      calories: 560,
+      proteinG: 32,
+      carbsG: 65,
+      fatG: 18,
+    },
+  });
 
 const foodEntrySchema = foodInputSchema.extend({
   id: z.uuid(),
@@ -53,19 +67,30 @@ const foodEntrySchema = foodInputSchema.extend({
   updatedAt: z.iso.datetime(),
 });
 
-const exerciseInputSchema = z.object({
-  entryDate: isoDateSchema,
-  exerciseName: z.string().trim().min(1).max(255),
-  durationMinutes: z
-    .number()
-    .int()
-    .positive()
-    .max(24 * 60),
-  intensity: z.enum(['low', 'moderate', 'high']).nullable().optional(),
-  caloriesBurned: z.number().min(0).max(100_000),
-  notes: z.string().trim().max(2_000).nullable().optional(),
-  aiEstimationId: z.uuid().nullable().optional(),
-});
+const exerciseInputSchema = z
+  .object({
+    entryDate: isoDateSchema,
+    exerciseName: z.string().trim().min(1).max(255),
+    durationMinutes: z
+      .number()
+      .int()
+      .positive()
+      .max(24 * 60),
+    intensity: z.enum(['low', 'moderate', 'high']).nullable().optional(),
+    caloriesBurned: z.number().min(0).max(100_000),
+    notes: z.string().trim().max(2_000).nullable().optional(),
+    aiEstimationId: z.uuid().nullable().optional(),
+  })
+  .meta({
+    example: {
+      entryDate: '2026-07-21',
+      exerciseName: 'Jogging',
+      durationMinutes: 30,
+      intensity: 'moderate',
+      caloriesBurned: 257.25,
+      notes: 'Steady pace',
+    },
+  });
 
 const exerciseEntrySchema = exerciseInputSchema.extend({
   id: z.uuid(),
@@ -86,6 +111,7 @@ export async function entryRoutes(app: FastifyInstance): Promise<void> {
     ...protectedRoute,
     schema: {
       tags: ['food entries'],
+      summary: 'Create or replay a food entry',
       security: [{ bearerAuth: [] }],
       body: foodInputSchema.extend({ clientEntryId: z.uuid() }),
       response: { 200: foodEntrySchema, 201: foodEntrySchema },
@@ -100,6 +126,7 @@ export async function entryRoutes(app: FastifyInstance): Promise<void> {
     ...protectedRoute,
     schema: {
       tags: ['food entries'],
+      summary: 'List food entries with opaque cursor pagination',
       security: [{ bearerAuth: [] }],
       querystring: listQuerySchema,
       response: {
@@ -113,6 +140,7 @@ export async function entryRoutes(app: FastifyInstance): Promise<void> {
     ...protectedRoute,
     schema: {
       tags: ['food entries'],
+      summary: 'Get one food entry',
       security: [{ bearerAuth: [] }],
       params: entryParamsSchema,
       response: { 200: foodEntrySchema },
@@ -124,6 +152,7 @@ export async function entryRoutes(app: FastifyInstance): Promise<void> {
     ...protectedRoute,
     schema: {
       tags: ['food entries'],
+      summary: 'Replace one food entry',
       security: [{ bearerAuth: [] }],
       params: entryParamsSchema,
       body: foodInputSchema,
@@ -137,6 +166,7 @@ export async function entryRoutes(app: FastifyInstance): Promise<void> {
     ...protectedRoute,
     schema: {
       tags: ['food entries'],
+      summary: 'Delete one food entry',
       security: [{ bearerAuth: [] }],
       params: entryParamsSchema,
       response: { 204: z.null() },
@@ -151,6 +181,7 @@ export async function entryRoutes(app: FastifyInstance): Promise<void> {
     ...protectedRoute,
     schema: {
       tags: ['exercise entries'],
+      summary: 'Create or replay an exercise entry',
       security: [{ bearerAuth: [] }],
       body: exerciseInputSchema.extend({ clientEntryId: z.uuid() }),
       response: { 200: exerciseEntrySchema, 201: exerciseEntrySchema },
@@ -165,6 +196,7 @@ export async function entryRoutes(app: FastifyInstance): Promise<void> {
     ...protectedRoute,
     schema: {
       tags: ['exercise entries'],
+      summary: 'List exercise entries with opaque cursor pagination',
       security: [{ bearerAuth: [] }],
       querystring: listQuerySchema,
       response: {
@@ -178,6 +210,7 @@ export async function entryRoutes(app: FastifyInstance): Promise<void> {
     ...protectedRoute,
     schema: {
       tags: ['exercise entries'],
+      summary: 'Get one exercise entry',
       security: [{ bearerAuth: [] }],
       params: entryParamsSchema,
       response: { 200: exerciseEntrySchema },
@@ -189,6 +222,7 @@ export async function entryRoutes(app: FastifyInstance): Promise<void> {
     ...protectedRoute,
     schema: {
       tags: ['exercise entries'],
+      summary: 'Replace one exercise entry',
       security: [{ bearerAuth: [] }],
       params: entryParamsSchema,
       body: exerciseInputSchema,
@@ -202,6 +236,7 @@ export async function entryRoutes(app: FastifyInstance): Promise<void> {
     ...protectedRoute,
     schema: {
       tags: ['exercise entries'],
+      summary: 'Delete one exercise entry',
       security: [{ bearerAuth: [] }],
       params: entryParamsSchema,
       response: { 204: z.null() },

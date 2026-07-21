@@ -3,11 +3,27 @@ import { loadConfig } from './config.js';
 
 const config = loadConfig();
 const app = await buildApp({ config });
+let shuttingDown = false;
 
 const shutdown = async (signal: string): Promise<void> => {
+  if (shuttingDown) return;
+  shuttingDown = true;
   app.log.info({ signal }, 'Shutting down');
-  await app.close();
-  process.exit(0);
+  const forcedExit = setTimeout(() => {
+    app.log.error({ timeoutMs: config.SHUTDOWN_TIMEOUT_MS }, 'Graceful shutdown timed out');
+    process.exit(1);
+  }, config.SHUTDOWN_TIMEOUT_MS);
+  forcedExit.unref();
+
+  try {
+    await app.close();
+    clearTimeout(forcedExit);
+    process.exitCode = 0;
+  } catch (error) {
+    clearTimeout(forcedExit);
+    app.log.error({ err: error }, 'Graceful shutdown failed');
+    process.exitCode = 1;
+  }
 };
 
 process.once('SIGINT', () => void shutdown('SIGINT'));

@@ -4,10 +4,17 @@ import { z } from 'zod';
 
 import { estimateExercise, estimateFood, getAIQuota } from './ai-service.js';
 
-const estimateInputSchema = z.object({
-  requestKey: z.uuid(),
-  description: z.string().trim().min(1).max(1_000),
-});
+const estimateInputSchema = z
+  .object({
+    requestKey: z.uuid(),
+    description: z.string().trim().min(1).max(1_000),
+  })
+  .meta({
+    example: {
+      requestKey: 'c8ef25f8-2850-44aa-849f-905841581966',
+      description: 'One plate of chicken rice',
+    },
+  });
 
 const estimateMetadataSchema = z.object({
   estimationId: z.uuid(),
@@ -46,6 +53,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     ...protectedRoute,
     schema: {
       tags: ['AI estimation'],
+      summary: 'Estimate food nutrition without saving',
       security: [{ bearerAuth: [] }],
       body: estimateInputSchema,
       response: { 200: foodResponseSchema, 201: foodResponseSchema },
@@ -60,6 +68,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     ...protectedRoute,
     schema: {
       tags: ['AI estimation'],
+      summary: 'Estimate exercise and calculate calories without saving',
       security: [{ bearerAuth: [] }],
       body: estimateInputSchema,
       response: { 200: exerciseResponseSchema, 201: exerciseResponseSchema },
@@ -74,6 +83,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     ...protectedRoute,
     schema: {
       tags: ['AI estimation'],
+      summary: 'Get the user-local AI quota',
       security: [{ bearerAuth: [] }],
       response: {
         200: z.object({
