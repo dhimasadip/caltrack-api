@@ -52,3 +52,17 @@ export function isValidTimeZone(value: string): boolean {
     return false;
   }
 }
+
+export function formatIsoDate(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+export function addUtcDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setUTCDate(result.getUTCDate() + days);
+  return result;
+}
+
+export function inclusiveDayCount(start: Date, end: Date): number {
+  return Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1;
+}
