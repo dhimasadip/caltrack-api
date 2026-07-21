@@ -18,3 +18,11 @@ docker compose up api
 
 The API is available at `http://localhost:3000`, Swagger UI at `/docs`, and the OpenAPI document at `/openapi.json`.
 PostgreSQL and Redis are exposed to WSL on ports `5433` and `6380` respectively.
+
+Run database migrations before starting a new environment:
+
+```bash
+docker compose run --rm api npm run db:migrate
+```
+
+Authentication starts with `POST /v1/auth/eligibility`, followed by registration. Access tokens use the `Authorization: Bearer <token>` header for protected profile and settings routes.

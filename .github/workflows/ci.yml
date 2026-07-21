@@ -11,6 +11,35 @@ permissions:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: caltrack
+          POSTGRES_USER: caltrack
+          POSTGRES_PASSWORD: caltrack
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U caltrack -d caltrack"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgres://caltrack:caltrack@localhost:5432/caltrack
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: ci-jwt-secret-with-at-least-thirty-two-characters
+      TOKEN_HASH_SECRET: ci-hash-secret-with-at-least-thirty-two-characters
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,6 +50,7 @@ jobs:
       - run: npm run format:check
       - run: npm run lint
       - run: npm run typecheck
+      - run: npm run db:migrate
       - run: npm test
       - run: npm run build
       - run: docker build --target production -t caltrack-api:test .

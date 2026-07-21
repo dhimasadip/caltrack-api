@@ -7,6 +7,8 @@ const configSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   DATABASE_URL: z.url().default('postgres://caltrack:caltrack@localhost:5432/caltrack'),
   REDIS_URL: z.url().default('redis://localhost:6379'),
+  JWT_SECRET: z.string().min(32).default('local-development-jwt-secret-change-me'),
+  TOKEN_HASH_SECRET: z.string().min(32).default('local-development-token-hash-secret'),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;

@@ -9,6 +9,9 @@ import {
 
 import { type AppConfig, loadConfig } from './config.js';
 import { registerErrorHandler } from './errors/error-handler.js';
+import { authRoutes } from './modules/auth/auth-routes.js';
+import { userRoutes } from './modules/users/user-routes.js';
+import { authPlugin } from './plugins/auth.js';
 import { databasePlugin } from './plugins/database.js';
 import { redisPlugin } from './plugins/redis.js';
 import { healthRoutes } from './routes/health.js';
@@ -41,6 +44,11 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         description: 'Backend API for calorie and exercise tracking.',
         version: '0.1.0',
       },
+      components: {
+        securitySchemes: {
+          bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+        },
+      },
     },
     transform: jsonSchemaTransform,
   });
@@ -51,7 +59,11 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     await app.register(redisPlugin);
   }
 
+  await app.register(authPlugin);
+
   await app.register(healthRoutes);
+  await app.register(authRoutes);
+  await app.register(userRoutes);
   app.get('/openapi.json', { schema: { hide: true } }, async () => app.swagger());
 
   return app;

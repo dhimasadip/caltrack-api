@@ -11,5 +11,27 @@ declare module 'fastify' {
     db: NodePgDatabase<typeof schema>;
     pg: Pool;
     redis: Redis;
+    authenticate: (request: FastifyRequest) => Promise<void>;
+  }
+}
+
+declare module '@fastify/jwt' {
+  interface FastifyJWT {
+    payload: {
+      type: 'access' | 'refresh' | 'eligibility';
+      sub?: string;
+      jti?: string;
+      familyId?: string;
+      birthDate?: string;
+      countryCode?: string;
+    };
+    user: {
+      type: 'access' | 'refresh' | 'eligibility';
+      sub: string;
+      jti?: string;
+      familyId?: string;
+      birthDate?: string;
+      countryCode?: string;
+    };
   }
 }
