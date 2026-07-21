@@ -4,6 +4,7 @@ import type { Pool } from 'pg';
 
 import type { AppConfig } from '../config.js';
 import type * as schema from '../db/schema.js';
+import type { AIProvider } from '../modules/ai/ai-provider.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -11,6 +12,7 @@ declare module 'fastify' {
     db: NodePgDatabase<typeof schema>;
     pg: Pool;
     redis: Redis;
+    aiProvider: AIProvider;
     authenticate: (request: FastifyRequest) => Promise<void>;
   }
 }
