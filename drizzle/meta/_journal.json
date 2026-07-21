@@ -8,6 +8,13 @@
       "when": 1784630818519,
       "tag": "0000_mushy_scarlet_witch",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1784631655227,
+      "tag": "0001_thick_shadow_king",
+      "breakpoints": true
     }
   ]
 }

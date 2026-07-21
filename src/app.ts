@@ -10,6 +10,7 @@ import {
 import { type AppConfig, loadConfig } from './config.js';
 import { registerErrorHandler } from './errors/error-handler.js';
 import { authRoutes } from './modules/auth/auth-routes.js';
+import { entryRoutes } from './modules/entries/entry-routes.js';
 import { userRoutes } from './modules/users/user-routes.js';
 import { authPlugin } from './plugins/auth.js';
 import { databasePlugin } from './plugins/database.js';
@@ -63,6 +64,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   await app.register(healthRoutes);
   await app.register(authRoutes);
+  await app.register(entryRoutes);
   await app.register(userRoutes);
   app.get('/openapi.json', { schema: { hide: true } }, async () => app.swagger());
 
