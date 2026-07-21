@@ -11,6 +11,7 @@ export async function reportRoutes(app: FastifyInstance): Promise<void> {
     onRequest: [app.authenticate],
     schema: {
       tags: ['reports'],
+      summary: 'Get a daily, weekly, monthly, or custom summary',
       security: [{ bearerAuth: [] }],
       querystring: reportQuerySchema,
       response: { 200: reportResponseSchema },

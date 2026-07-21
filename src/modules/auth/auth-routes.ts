@@ -26,14 +26,19 @@ const authenticationResponseSchema = z.object({
 
 export async function authRoutes(app: FastifyInstance): Promise<void> {
   const router = app.withTypeProvider<ZodTypeProvider>();
+  const authRateLimit = { rateLimit: { max: app.config.AUTH_RATE_LIMIT_MAX } };
 
   router.post('/v1/auth/eligibility', {
+    config: authRateLimit,
     schema: {
       tags: ['auth'],
-      body: z.object({
-        birthDate: isoDateSchema,
-        countryCode: z.string().regex(/^[A-Za-z]{2}$/),
-      }),
+      summary: 'Check age eligibility',
+      body: z
+        .object({
+          birthDate: isoDateSchema,
+          countryCode: z.string().regex(/^[A-Za-z]{2}$/),
+        })
+        .meta({ example: { birthDate: '2000-06-15', countryCode: 'ID' } }),
       response: {
         200: z.object({
           eligibilityToken: z.string(),
@@ -47,13 +52,23 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   });
 
   router.post('/v1/auth/register', {
+    config: authRateLimit,
     schema: {
       tags: ['auth'],
-      body: z.object({
-        eligibilityToken: z.string().min(1),
-        email: z.email().max(255),
-        password: z.string().min(12).max(128),
-      }),
+      summary: 'Register an eligible user',
+      body: z
+        .object({
+          eligibilityToken: z.string().min(1),
+          email: z.email().max(255),
+          password: z.string().min(12).max(128),
+        })
+        .meta({
+          example: {
+            eligibilityToken: '<token from /v1/auth/eligibility>',
+            email: 'person@example.com',
+            password: 'a long passphrase',
+          },
+        }),
       response: { 201: authenticationResponseSchema },
     },
     handler: async (request, reply) => {
@@ -63,17 +78,23 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   });
 
   router.post('/v1/auth/login', {
+    config: authRateLimit,
     schema: {
       tags: ['auth'],
-      body: z.object({ email: z.email().max(255), password: z.string().min(1).max(128) }),
+      summary: 'Log in',
+      body: z
+        .object({ email: z.email().max(255), password: z.string().min(1).max(128) })
+        .meta({ example: { email: 'person@example.com', password: 'a long passphrase' } }),
       response: { 200: authenticationResponseSchema },
     },
     handler: async (request) => loginUser(app, request.body.email, request.body.password),
   });
 
   router.post('/v1/auth/refresh', {
+    config: authRateLimit,
     schema: {
       tags: ['auth'],
+      summary: 'Rotate a refresh token',
       body: z.object({ refreshToken: z.string().min(1) }),
       response: { 200: tokenPairSchema },
     },
@@ -81,8 +102,10 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   });
 
   router.post('/v1/auth/logout', {
+    config: authRateLimit,
     schema: {
       tags: ['auth'],
+      summary: 'Log out and revoke a refresh token',
       body: z.object({ refreshToken: z.string().min(1) }),
       response: { 204: z.null() },
     },

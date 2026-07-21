@@ -59,34 +59,69 @@ export interface NotificationPreferences {
   weighIn: boolean;
 }
 
-export const userProfiles = pgTable('user_profiles', {
-  userId: uuid('user_id')
-    .primaryKey()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  birthDate: date('birth_date').notNull(),
-  countryCode: char('country_code', { length: 2 }).notNull(),
-  gender: genderEnum('gender'),
-  heightCm: numeric('height_cm', { precision: 6, scale: 2 }),
-  weightKg: numeric('weight_kg', { precision: 6, scale: 2 }),
-  activityLevel: activityLevelEnum('activity_level'),
-  goalType: goalTypeEnum('goal_type'),
-  targetWeightKg: numeric('target_weight_kg', { precision: 6, scale: 2 }),
-  targetDate: date('target_date'),
-  dailyCalorieGoal: integer('daily_calorie_goal'),
-  suggestedCalorieGoal: integer('suggested_calorie_goal'),
-  bmr: numeric('bmr', { precision: 8, scale: 2 }),
-  tdee: numeric('tdee', { precision: 8, scale: 2 }),
-  calculationMethod: calculationMethodEnum('calculation_method'),
-  calculationAssumptions: jsonb('calculation_assumptions').$type<string[]>().notNull().default([]),
-  timeZone: varchar('time_zone', { length: 64 }).notNull().default('UTC'),
-  unitSystem: unitSystemEnum('unit_system').notNull().default('metric'),
-  notificationPreferences: jsonb('notification_preferences')
-    .$type<NotificationPreferences>()
-    .notNull()
-    .default({ breakfast: false, lunch: false, dinner: false, weighIn: false }),
-  onboardingComplete: boolean('onboarding_complete').notNull().default(false),
-  ...auditColumns,
-});
+export const userProfiles = pgTable(
+  'user_profiles',
+  {
+    userId: uuid('user_id')
+      .primaryKey()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    birthDate: date('birth_date').notNull(),
+    countryCode: char('country_code', { length: 2 }).notNull(),
+    gender: genderEnum('gender'),
+    heightCm: numeric('height_cm', { precision: 6, scale: 2 }),
+    weightKg: numeric('weight_kg', { precision: 6, scale: 2 }),
+    activityLevel: activityLevelEnum('activity_level'),
+    goalType: goalTypeEnum('goal_type'),
+    targetWeightKg: numeric('target_weight_kg', { precision: 6, scale: 2 }),
+    targetDate: date('target_date'),
+    dailyCalorieGoal: integer('daily_calorie_goal'),
+    suggestedCalorieGoal: integer('suggested_calorie_goal'),
+    bmr: numeric('bmr', { precision: 8, scale: 2 }),
+    tdee: numeric('tdee', { precision: 8, scale: 2 }),
+    calculationMethod: calculationMethodEnum('calculation_method'),
+    calculationAssumptions: jsonb('calculation_assumptions')
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    timeZone: varchar('time_zone', { length: 64 }).notNull().default('UTC'),
+    unitSystem: unitSystemEnum('unit_system').notNull().default('metric'),
+    notificationPreferences: jsonb('notification_preferences')
+      .$type<NotificationPreferences>()
+      .notNull()
+      .default({ breakfast: false, lunch: false, dinner: false, weighIn: false }),
+    onboardingComplete: boolean('onboarding_complete').notNull().default(false),
+    ...auditColumns,
+  },
+  (table) => [
+    check('user_profiles_country_code_check', sql`${table.countryCode} ~ '^[A-Z]{2}$'`),
+    check(
+      'user_profiles_height_check',
+      sql`${table.heightCm} is null or ${table.heightCm} between 50 and 300`,
+    ),
+    check(
+      'user_profiles_weight_check',
+      sql`${table.weightKg} is null or ${table.weightKg} between 20 and 500`,
+    ),
+    check(
+      'user_profiles_target_weight_check',
+      sql`${table.targetWeightKg} is null or ${table.targetWeightKg} between 20 and 500`,
+    ),
+    check(
+      'user_profiles_daily_goal_check',
+      sql`${table.dailyCalorieGoal} is null or ${table.dailyCalorieGoal} between 800 and 10000`,
+    ),
+    check(
+      'user_profiles_suggested_goal_check',
+      sql`${table.suggestedCalorieGoal} is null or ${table.suggestedCalorieGoal} > 0`,
+    ),
+    check('user_profiles_bmr_check', sql`${table.bmr} is null or ${table.bmr} > 0`),
+    check('user_profiles_tdee_check', sql`${table.tdee} is null or ${table.tdee} > 0`),
+    check(
+      'user_profiles_onboarding_check',
+      sql`not ${table.onboardingComplete} or (${table.gender} is not null and ${table.heightCm} is not null and ${table.weightKg} is not null and ${table.activityLevel} is not null and ${table.goalType} is not null and ${table.dailyCalorieGoal} is not null and ${table.calculationMethod} is not null)`,
+    ),
+  ],
+);
 
 export const refreshTokens = pgTable(
   'refresh_tokens',
@@ -130,6 +165,10 @@ export const aiEstimations = pgTable(
     uniqueIndex('ai_estimations_user_request_unique').on(table.userId, table.requestKey),
     index('ai_estimations_user_created_idx').on(table.userId, table.createdAt),
     check('ai_estimations_confidence_check', sql`${table.confidence} between 0 and 1`),
+    check(
+      'ai_estimations_token_usage_check',
+      sql`(${table.inputTokens} is null or ${table.inputTokens} >= 0) and (${table.outputTokens} is null or ${table.outputTokens} >= 0)`,
+    ),
   ],
 );
 
@@ -152,7 +191,7 @@ export const foodEntries = pgTable(
     fatG: numeric('fat_g', { precision: 10, scale: 2 }),
     source: entrySourceEnum('source').notNull(),
     aiEstimationId: uuid('ai_estimation_id').references(() => aiEstimations.id, {
-      onDelete: 'set null',
+      onDelete: 'restrict',
     }),
     ...auditColumns,
   },
@@ -189,7 +228,7 @@ export const exerciseEntries = pgTable(
     notes: text('notes'),
     source: entrySourceEnum('source').notNull(),
     aiEstimationId: uuid('ai_estimation_id').references(() => aiEstimations.id, {
-      onDelete: 'set null',
+      onDelete: 'restrict',
     }),
     ...auditColumns,
   },

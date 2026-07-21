@@ -19,6 +19,7 @@ import { authPlugin } from './plugins/auth.js';
 import { aiProviderPlugin } from './plugins/ai-provider.js';
 import { databasePlugin } from './plugins/database.js';
 import { redisPlugin } from './plugins/redis.js';
+import { securityPlugin } from './plugins/security.js';
 import { healthRoutes } from './routes/health.js';
 
 export interface BuildAppOptions {
@@ -30,11 +31,30 @@ export interface BuildAppOptions {
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
   const config = options.config ?? loadConfig();
   const app = Fastify({
+    bodyLimit: config.BODY_LIMIT_BYTES,
+    requestTimeout: config.REQUEST_TIMEOUT_MS,
+    trustProxy: config.TRUST_PROXY,
     logger:
       config.NODE_ENV === 'test'
         ? false
         : {
             level: config.LOG_LEVEL,
+            redact: {
+              paths: [
+                'req.headers.authorization',
+                'req.headers.cookie',
+                'res.headers.set-cookie',
+                'password',
+                'eligibilityToken',
+                'accessToken',
+                'refreshToken',
+                '*.password',
+                '*.eligibilityToken',
+                '*.accessToken',
+                '*.refreshToken',
+              ],
+              censor: '[REDACTED]',
+            },
           },
   });
 
@@ -43,27 +63,56 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   app.setSerializerCompiler(serializerCompiler);
   registerErrorHandler(app);
 
+  if (options.infrastructure !== false) {
+    await app.register(databasePlugin);
+    await app.register(redisPlugin);
+  }
+
+  await app.register(securityPlugin);
+
   await app.register(swagger, {
     openapi: {
       info: {
         title: 'CalTrack API',
-        description: 'Backend API for calorie and exercise tracking.',
-        version: '0.1.0',
+        description:
+          'Backend-only REST API for age-gated accounts, calorie tracking, reports, and editable AI suggestions. All error responses use the standard error envelope.',
+        version: '1.0.0',
       },
+      servers: [{ url: '/', description: 'Current server' }],
+      tags: [
+        { name: 'auth', description: 'Eligibility, registration, and token lifecycle.' },
+        { name: 'users', description: 'Current-user profile, settings, and deletion.' },
+        { name: 'food entries', description: 'Idempotent food-entry management.' },
+        { name: 'exercise entries', description: 'Idempotent exercise-entry management.' },
+        { name: 'reports', description: 'Daily-series and aggregate calorie reports.' },
+        {
+          name: 'AI estimation',
+          description: 'Quota-controlled editable suggestions; estimates are never auto-saved.',
+        },
+        { name: 'operations', description: 'Liveness and dependency readiness.' },
+      ],
       components: {
         securitySchemes: {
           bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+        },
+        examples: {
+          standardError: {
+            summary: 'Standard error envelope',
+            value: {
+              error: {
+                code: 'VALIDATION_ERROR',
+                message: 'The request is invalid.',
+                details: [],
+                requestId: 'req-1',
+              },
+            },
+          },
         },
       },
     },
     transform: jsonSchemaTransform,
   });
   await app.register(swaggerUi, { routePrefix: '/docs' });
-
-  if (options.infrastructure !== false) {
-    await app.register(databasePlugin);
-    await app.register(redisPlugin);
-  }
 
   await app.register(authPlugin);
   await app.register(

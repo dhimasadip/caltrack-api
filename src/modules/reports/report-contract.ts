@@ -23,7 +23,8 @@ export const reportQuerySchema = z
         message: 'Daily, weekly, and monthly reports require `anchor`.',
       });
     }
-  });
+  })
+  .meta({ example: { period: 'weekly', anchor: '2026-07-21' } });
 
 export const dailyReportSchema = z.object({
   date: isoDateSchema,

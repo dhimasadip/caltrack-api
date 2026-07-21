@@ -23,6 +23,42 @@ services:
       redis:
         condition: service_healthy
 
+  api-production:
+    profiles: [production]
+    build:
+      context: .
+      target: production
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      DATABASE_URL: postgres://caltrack:caltrack@postgres:5432/caltrack
+      REDIS_URL: redis://redis:6379
+    ports:
+      - '3000:3000'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    stop_grace_period: 15s
+
+  migrate:
+    profiles: [production]
+    build:
+      context: .
+      target: migration
+    environment:
+      DATABASE_URL: postgres://caltrack:caltrack@postgres:5432/caltrack
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
   postgres:
     image: postgres:17-alpine
     environment:
@@ -38,6 +74,7 @@ services:
       interval: 3s
       timeout: 3s
       retries: 10
+    stop_grace_period: 30s
 
   redis:
     image: redis:8-alpine
@@ -51,6 +88,7 @@ services:
       interval: 3s
       timeout: 3s
       retries: 10
+    stop_grace_period: 30s
 
 volumes:
   api_node_modules:

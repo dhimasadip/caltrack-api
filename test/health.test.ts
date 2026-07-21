@@ -42,4 +42,21 @@ describe('operational routes', () => {
     expect(body.error.message).toBeTypeOf('string');
     expect(body.error.requestId).toBeTypeOf('string');
   });
+
+  it('reports database, migration, and Redis readiness', async () => {
+    const app = await buildApp({
+      config: loadConfig({
+        NODE_ENV: 'test',
+        DATABASE_URL: process.env.DATABASE_URL,
+        REDIS_URL: process.env.REDIS_URL,
+      }),
+    });
+    apps.push(app);
+    const response = await app.inject({ method: 'GET', url: '/ready' });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      status: 'ok',
+      checks: { postgres: true, migrations: true, redis: true },
+    });
+  });
 });
